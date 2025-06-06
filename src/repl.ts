@@ -1,14 +1,6 @@
-import { createInterface } from "node:readline"
 import {
-  stdin,
-  stdout,
-} from "node:process"
-import {
-  exitCommand,
-} from "./commands/exit.js"
-import {
-  helpCommand,
-} from "./commands/help.js"
+  initState,
+} from "./state.js"
 
 export function cleanInput(input: string): string[] {
   const cleaned = input
@@ -20,45 +12,29 @@ export function cleanInput(input: string): string[] {
   return cleaned
 }
 
-export function startREPL () {
-  const int = createInterface({
-    input: stdin,
-    output: stdout,
-    prompt: "Pokedex > "
-  })
-  int.prompt()
-  int.on("line", (input) => {
+export async function startREPL () {
+  const state = initState()
+  const {rl, commands} = state;
+  rl.prompt()
+  rl.on("line", async (input) => {
     const cleanedInput = cleanInput(input)
     if (cleanedInput.length === 0) {
-      int.prompt()
+      rl.prompt()
       return
     }
     const word = cleanedInput[0];
-    const commands = getCommands()
     try {
       const command = commands[word]
       if (command !== undefined) {
-        command.callback(commands)
+        await command.callback(state, ...cleanedInput.slice(1))
       } else {
         console.log("Unknown command")
       }
-    } catch (error) {
+    } catch (e) {
+      if (e instanceof Error) {
+        console.log(e)
+      }
     }
-    int.prompt()
+    rl.prompt()
   })
-}
-
-export type CommandRegistry = Record<string, CLICommand>
-
-export type CLICommand = {
-  name: string;
-  description: string;
-  callback: (commands: CommandRegistry) => void;
-}
-
-function getCommands(): CommandRegistry {
-  return {
-    exit: exitCommand,
-    help: helpCommand,
-  }
 }
